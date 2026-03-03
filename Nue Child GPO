@@ -1,0 +1,69 @@
+metadata {
+    definition(name: "Nue Child GPO", namespace: "mr_fy_hubitat", author: "mr_fy") {
+        capability "Switch"
+        capability "Outlet"
+        capability "Actuator"
+        capability "Refresh"
+        capability "Sensor"
+        capability "Power Meter"
+        capability "Energy Meter"
+        capability "Voltage Measurement"
+        capability "Current Meter"
+
+        attribute "voltage", "number"
+        attribute "current", "number"
+        attribute "power", "number"
+        attribute "energy", "number"
+    }
+}
+
+def parse(String description) {
+    // No raw Zigbee parsing in child; child only gets events from parent.
+    if (settings?.enableDebug) {
+        log.debug "Child received raw parse call with description: ${description}"
+    }
+}
+
+def parse(List events) {
+    events.each { evt ->
+        if (settings?.enableDebug) {
+            log.debug "Child handling event: ${evt}"
+        }
+        sendEvent(evt)
+    }
+}
+
+def setPowerData(Map data) {
+    if (data.power != null) {
+        sendEvent(name: "power", value: data.power, unit: "W", descriptionText: "Power is ${data.power} W")
+    }
+    if (data.energy != null) {
+        sendEvent(name: "energy", value: data.energy, unit: "kWh", descriptionText: "Energy is ${data.energy} kWh")
+    }
+    if (data.voltage != null) {
+        sendEvent(name: "voltage", value: data.voltage, unit: "V", descriptionText: "Voltage is ${data.voltage} V")
+    }
+    if (data.current != null) {
+        sendEvent(name: "current", value: data.current, unit: "A", descriptionText: "Current is ${data.current} A")
+    }
+}
+
+def on() {
+    parent.componentOn(device)
+}
+
+def off() {
+    parent.componentOff(device)
+}
+
+def refresh() {
+    parent.componentRefresh(device)
+}
+
+def installed() {
+    log.info "Child device installed"
+}
+
+def updated() {
+    log.info "Child device updated"
+}
