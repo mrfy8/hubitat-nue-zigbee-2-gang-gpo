@@ -1,69 +1,66 @@
+/*
+ *  Nue Child GPO
+ *  Child outlet for "Parent Nue Zigbee 2 Gang GPO"
+ *
+ *  2025-07-08  v1.0  Initial
+ *  2026-09-17  v2.0  - Removed metering (device has no metering clusters)
+ *                    - Added healthStatus / lastCheckin (mirrored from parent)
+ *                    - Debug logging follows the parent's setting
+ */
+
 metadata {
     definition(name: "Nue Child GPO", namespace: "mr_fy_hubitat", author: "mr_fy") {
+        capability "Actuator"
         capability "Switch"
         capability "Outlet"
-        capability "Actuator"
         capability "Refresh"
-        capability "Sensor"
-        capability "Power Meter"
-        capability "Energy Meter"
-        capability "Voltage Measurement"
-        capability "Current Meter"
 
-        attribute "voltage", "number"
-        attribute "current", "number"
-        attribute "power", "number"
-        attribute "energy", "number"
+        attribute "healthStatus", "enum", ["online", "offline", "unknown"]
+        attribute "lastCheckin", "string"
     }
 }
 
-def parse(String description) {
-    // No raw Zigbee parsing in child; child only gets events from parent.
-    if (settings?.enableDebug) {
-        log.debug "Child received raw parse call with description: ${description}"
-    }
+void installed() {
+    logDebug "Installed"
 }
 
-def parse(List events) {
-    events.each { evt ->
-        if (settings?.enableDebug) {
-            log.debug "Child handling event: ${evt}"
-        }
+void updated() {
+    logDebug "Updated"
+}
+
+// Children receive no raw Zigbee traffic; the parent forwards events.
+void parse(String description) {
+    logDebug "Unexpected raw parse: ${description}"
+}
+
+void parse(List events) {
+    events?.each { Map evt ->
+        logDebug "Event: ${evt}"
         sendEvent(evt)
     }
 }
 
-def setPowerData(Map data) {
-    if (data.power != null) {
-        sendEvent(name: "power", value: data.power, unit: "W", descriptionText: "Power is ${data.power} W")
+void on() {
+    parent?.componentOn(device)
+}
+
+void off() {
+    parent?.componentOff(device)
+}
+
+void refresh() {
+    parent?.componentRefresh(device)
+}
+
+// Called by parent configure() to clear v1.0 metering states
+void cleanupStates() {
+    ["power", "voltage", "current", "amperage", "energy"].each { String a ->
+        try { device.deleteCurrentState(a) } catch (Exception ignored) { }
     }
-    if (data.energy != null) {
-        sendEvent(name: "energy", value: data.energy, unit: "kWh", descriptionText: "Energy is ${data.energy} kWh")
-    }
-    if (data.voltage != null) {
-        sendEvent(name: "voltage", value: data.voltage, unit: "V", descriptionText: "Voltage is ${data.voltage} V")
-    }
-    if (data.current != null) {
-        sendEvent(name: "current", value: data.current, unit: "A", descriptionText: "Current is ${data.current} A")
-    }
 }
 
-def on() {
-    parent.componentOn(device)
-}
-
-def off() {
-    parent.componentOff(device)
-}
-
-def refresh() {
-    parent.componentRefresh(device)
-}
-
-def installed() {
-    log.info "Child device installed"
-}
-
-def updated() {
-    log.info "Child device updated"
+private void logDebug(String msg) {
+    Boolean dbg = false
+    try { dbg = parent?.debugEnabled() } catch (Exception ignored) { }
+    if (dbg) log.debug "${device.displayName}: ${msg}"
 }
